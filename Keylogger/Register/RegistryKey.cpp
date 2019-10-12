@@ -1,4 +1,3 @@
-#include "pch.h"
 #include "RegistryKey.h"
 
 

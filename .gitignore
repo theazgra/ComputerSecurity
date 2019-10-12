@@ -3,3 +3,5 @@ Debug/
 Release/
 *.zip
 output/
+*.user
+*.filters

